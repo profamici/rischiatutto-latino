@@ -1,0 +1,488 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Rischiatutto Latino</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #0f172a; /* Slate 900 */
+            color: white;
+            overflow-x: hidden;
+        }
+        
+        /* Grid styling */
+        .jeopardy-grid {
+            display: grid;
+            grid-template-columns: repeat(7, minmax(150px, 1fr));
+            gap: 0.5rem;
+            padding: 1rem;
+            width: 100%;
+            max-width: 1920px;
+            margin: 0 auto;
+        }
+
+        /* Card 3D effect */
+        .question-card {
+            aspect-ratio: 16 / 9;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: linear-gradient(135deg, #1e3a8a 0%, #1e40af 100%);
+            border: 2px solid #3b82f6;
+            border-radius: 0.5rem;
+            font-size: 2rem;
+            font-weight: 800;
+            color: #fbbf24;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.5);
+            cursor: pointer;
+            transition: all 0.2s ease-in-out;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+        }
+
+        .question-card:hover:not(.played) {
+            transform: scale(1.05);
+            background: linear-gradient(135deg, #2563eb 0%, #3b82f6 100%);
+            border-color: #60a5fa;
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+        }
+
+        .question-card.played {
+            background: #1e293b;
+            border-color: #334155;
+            color: #475569;
+            cursor: default;
+            text-shadow: none;
+        }
+
+        .category-header {
+            background-color: #1e293b;
+            color: #f8fafc;
+            text-align: center;
+            padding: 1rem 0.5rem;
+            font-weight: 800;
+            font-size: 1.1rem;
+            border-radius: 0.5rem;
+            border-bottom: 4px solid #3b82f6;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            min-height: 80px;
+            text-transform: uppercase;
+        }
+
+        /* Modal Overlay */
+        .modal-overlay {
+            background-color: rgba(15, 23, 42, 0.95);
+            backdrop-filter: blur(5px);
+        }
+
+        /* Timer pulse animation */
+        @keyframes pulse-red {
+            0% { color: #ef4444; }
+            50% { color: #fca5a5; text-shadow: 0 0 10px #ef4444; }
+            100% { color: #ef4444; }
+        }
+        .timer-urgent {
+            animation: pulse-red 1s infinite;
+        }
+    </style>
+</head>
+<body class="min-h-screen flex flex-col">
+
+    <!-- Header -->
+    <header class="bg-slate-900 py-4 shadow-md text-center border-b border-slate-700">
+        <h1 class="text-4xl font-extrabold tracking-wider text-transparent bg-clip-text bg-gradient-to-r from-yellow-400 to-yellow-200 uppercase">
+            Rischiatutto Latino
+        </h1>
+    </header>
+
+    <!-- Main Game Board Container -->
+    <main class="flex-grow flex items-center justify-center overflow-x-auto bg-slate-800">
+        <div id="game-board" class="jeopardy-grid">
+            <!-- Grid will be populated by JS -->
+        </div>
+    </main>
+
+    <!-- Scoreboard Container -->
+    <footer class="bg-slate-900 border-t border-slate-700 p-4">
+        <div class="max-w-7xl mx-auto grid grid-cols-4 gap-4" id="scoreboard">
+            <!-- Teams will be populated by JS -->
+        </div>
+    </footer>
+
+    <!-- Modal: Question & Timer -->
+    <div id="question-modal" class="fixed inset-0 modal-overlay flex items-center justify-center z-50 hidden opacity-0 transition-opacity duration-300">
+        <div class="bg-slate-800 border-2 border-blue-500 rounded-xl shadow-2xl w-11/12 max-w-5xl flex flex-col max-h-[95vh]">
+            
+            <!-- Modal Header (Points) -->
+            <div class="bg-blue-900 text-yellow-400 text-center py-4 rounded-t-lg border-b border-blue-500 text-3xl font-bold" id="modal-points">
+                500
+            </div>
+
+            <!-- Modal Content -->
+            <div class="p-8 flex-grow flex flex-col items-center justify-center text-center overflow-y-auto">
+                <h2 id="modal-question" class="text-3xl md:text-5xl font-bold leading-tight mb-8 text-white">
+                    Domanda...
+                </h2>
+
+                <div id="modal-answer-container" class="hidden w-full">
+                    <hr class="border-slate-600 w-1/2 mx-auto mb-6">
+                    <p class="text-xl text-green-400 uppercase tracking-widest font-bold mb-2">Risposta</p>
+                    <p id="modal-answer" class="text-2xl md:text-4xl font-semibold text-yellow-200">
+                        Risposta...
+                    </p>
+                </div>
+            </div>
+
+            <!-- Modal Timer Controls -->
+            <div class="bg-slate-900 p-4 flex flex-col items-center justify-center border-t border-slate-700">
+                <div class="text-5xl font-mono font-bold mb-4" id="timer-display">30</div>
+                <div class="flex gap-4 mb-6">
+                    <button onclick="startTimer()" class="bg-green-600 hover:bg-green-500 px-6 py-2 rounded-full font-bold text-white transition">▶ Avvia</button>
+                    <button onclick="pauseTimer()" class="bg-yellow-600 hover:bg-yellow-500 px-6 py-2 rounded-full font-bold text-white transition">⏸ Pausa</button>
+                    <button onclick="resetTimer()" class="bg-slate-600 hover:bg-slate-500 px-6 py-2 rounded-full font-bold text-white transition">⟲ Reset</button>
+                    <button id="reveal-btn" onclick="revealAnswer()" class="ml-4 bg-purple-600 hover:bg-purple-500 px-8 py-2 rounded-full font-bold text-white transition shadow-[0_0_15px_rgba(147,51,234,0.5)]">Rivela Risposta</button>
+                </div>
+
+                <!-- Admin Action: Assign Points -->
+                <div id="assign-points-container" class="w-full max-w-4xl opacity-50 transition-opacity duration-300">
+                    <p class="text-center text-slate-400 mb-2 uppercase text-sm font-bold tracking-wider">Assegna Punti A:</p>
+                    <div class="grid grid-cols-4 gap-2" id="assign-buttons">
+                        <!-- Buttons populated by JS -->
+                    </div>
+                </div>
+            </div>
+
+            <!-- Close Button -->
+            <button onclick="closeModal(false)" class="absolute top-4 right-6 text-slate-400 hover:text-white text-4xl font-bold">
+                &times;
+            </button>
+        </div>
+    </div>
+
+    <!-- Modal: Rename Team -->
+    <div id="rename-modal" class="fixed inset-0 modal-overlay flex items-center justify-center z-50 hidden opacity-0 transition-opacity duration-300">
+        <div class="bg-slate-800 p-8 rounded-xl border border-slate-600 shadow-2xl w-96 text-center">
+            <h3 class="text-2xl font-bold mb-4">Rinomina Squadra</h3>
+            <input type="text" id="rename-input" class="w-full bg-slate-900 border border-slate-600 rounded p-3 text-white text-xl text-center focus:outline-none focus:border-blue-500 mb-6" autocomplete="off">
+            <div class="flex justify-center gap-4">
+                <button onclick="closeRenameModal()" class="px-6 py-2 bg-slate-600 hover:bg-slate-500 rounded font-bold transition">Annulla</button>
+                <button onclick="saveTeamName()" class="px-6 py-2 bg-blue-600 hover:bg-blue-500 rounded font-bold transition">Salva</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // --- GAME DATA ---
+        const gameData = [
+            {
+                category: "L'Albero delle Parole",
+                questions: [
+                    { points: 100, q: "Usiamo la parola 'Persona' tutti i giorni per indicare un essere umano. Ma nell'antica Roma e nel teatro antico, che cos'era fisicamente la 'persona'?", a: "Era la maschera teatrale. (Serviva per far risuonare la voce: per-sonare)." },
+                    { points: 200, q: "Spiega il collegamento logico e storico tra la parola latina 'pecus' (gregge, bestiame) e la parola italiana 'pecunia' (denaro).", a: "Nell'antichità la ricchezza si misurava nel possesso di bestiame. Il gregge era il 'denaro' dell'epoca." },
+                    { points: 300, q: "La parola 'salario' deriva dal sale. Perché i Romani associavano il sale allo stipendio?", a: "Il sale era preziosissimo per conservare i cibi. Ai soldati veniva data una razione di sale come paga, o denaro per comprarlo." },
+                    { points: 400, q: "La parola 'Vaccino' ha un'origine contadina legata a un animale della prima declinazione. Quale animale e qual è il collegamento?", a: "Deriva da 'vacca'. Il primo vaccino fu inventato a fine '700 usando il virus del vaiolo delle mucche (vaiolo vaccino)." },
+                    { points: 500, q: "In classe leggiamo un 'testo'. Questa parola deriva dal verbo latino 'texere'. Cosa significava letteralmente e cosa c'entra con le parole?", a: "Significava 'tessere, intrecciare'. Per i Romani, le frasi di un bel discorso sono fili intrecciati ad arte per formare un 'tessuto'." }
+                ]
+            },
+            {
+                category: "Caccia all'Intruso",
+                questions: [
+                    { points: 100, q: "Trova l'intruso: Nauta, Poeta, Agricola, Puella.", a: "Puella. È l'unico nome femminile; gli altri sono maschili della prima declinazione." },
+                    { points: 200, q: "Trova l'intruso: Rosae, Lupi, Pueri, Magistri.", a: "Rosae. È l'unico nome della prima declinazione; gli altri appartengono alla seconda." },
+                    { points: 300, q: "Trova l'intruso: Bellum, Oppidum, Equus, Donum.", a: "Equus. È un nome maschile, mentre gli altri tre sono nomi neutri in -um." },
+                    { points: 400, q: "Trova l'intruso in questo gruppo: Rosarum, Luporum, Puerum, Deorum.", a: "Puerum. È un accusativo singolare, mentre le altre tre parole sono genitivi plurali." },
+                    { points: 500, q: "Trova l'intruso: Castra, Arma, Hiberna, Oppida.", a: "Oppida. Ha il singolare (oppidum), mentre gli altri tre sono Pluralia Tantum (hanno solo il plurale)." }
+                ]
+            },
+            {
+                category: "Il Tassello Mancante",
+                questions: [
+                    { points: 100, q: "Completa correttamente: Magister ______ laudat. (Opzioni: discipulus / discipulorum / discipulos)", a: "Discipulos. (Serve il complemento oggetto - accusativo)." },
+                    { points: 200, q: "Indica lo stato in luogo corretto: Puellae in ______ rident. (Opzioni: silvam / silva / silvae)", a: "Silva. (Lo stato in luogo richiede in + ablativo)." },
+                    { points: 300, q: "Completa 'Il popolo teme l'ira degli dei': Populus iram ______ timet. (Opzioni: deorum / deos / deis)", a: "Deorum. (Serve il complemento di specificazione - genitivo plurale)." },
+                    { points: 400, q: "Completa 'Il maestro dà un bel libro all'alunno diligente': Magister pulchrum librum ______ dat. (Opzioni: discipulo sedulo / discipulum sedulum)", a: "Discipulo sedulo. (Serve il complemento di termine - dativo)." },
+                    { points: 500, q: "Completa 'Roma è la patria dei poeti': Roma patria ______ est. (Opzioni: poetarum / poetorum / poetis)", a: "Poetarum. (Poeta è maschile, ma appartiene alla prima declinazione: genitivo in -arum)." }
+                ]
+            },
+            {
+                category: "La Declinazione",
+                questions: [
+                    { points: 100, q: "Qual è il vocativo singolare del nome Lucius?", a: "Luci. (I nomi in -ius della seconda perdono la 'e')." },
+                    { points: 200, q: "Declina al dativo plurale l'espressione 'il vasto impero' (vastum imperium).", a: "Vastis imperiis." },
+                    { points: 300, q: "Traduci in latino l'espressione 'Il pino alto' al nominativo singolare.", a: "Pinus alta. (I nomi di piante in -us della seconda sono femminili)." },
+                    { points: 400, q: "Forma il dativo e l'ablativo plurale dell'espressione 'la bella dea' (pulchra dea).", a: "Pulchris deabus. (Dea esce in -abus per non confondersi con deis)." },
+                    { points: 500, q: "Volgi al genitivo plurale l'espressione 'Il fabbro laborioso' (Faber sedulus).", a: "Fabrorum sedulorum. (Faber perde la 'e' nel tema)." }
+                ]
+            },
+            {
+                category: "Macchina del Tempo",
+                questions: [
+                    { points: 100, q: "Traduci in latino il pronome e verbo: 'Noi eravamo'.", a: "Eramus." },
+                    { points: 200, q: "Traduci in italiano esattamente questa forma verbale della terza coniugazione: Legebatis.", a: "Voi leggevate." },
+                    { points: 300, q: "Volgi il verbo Videt (egli vede) all'imperfetto indicativo (stessa persona).", a: "Videbat." },
+                    { points: 400, q: "Riconosci la coniugazione di appartenenza e traduci: Audiebatis.", a: "Quarta coniugazione; 'Voi ascoltavate'." },
+                    { points: 500, q: "Identifica l'errore in questa sequenza dell'imperfetto del verbo essere e correggilo: eram, eras, erat, eramus, eratis, erunt.", a: "L'errore è erunt. La forma corretta della terza plurale è 'erant'." }
+                ]
+            },
+            {
+                category: "Gossip Antichità",
+                questions: [
+                    { points: 100, q: "È la moglie di Giove ed è famosissima per la sua terribile gelosia. Chi è?", a: "Giunone (o Era)." },
+                    { points: 200, q: "Quale celebre stratagemma usò Penelope per rimandare le nozze con i Proci in attesa di Ulisse?", a: "Tesseva una tela di giorno e la scuciva di notte." },
+                    { points: 300, q: "Perché il tallone era l'unico punto vulnerabile del guerriero greco Achille?", a: "Sua madre Teti lo immerse nelle acque magiche dello Stige, ma lo tenne per il tallone, che non fu bagnato." },
+                    { points: 400, q: "Tra le 12 fatiche di Ercole c'è un mostro a cui, tagliata una testa, ne ricrescevano due. Come si chiamava?", a: "L'Idra di Lerna." },
+                    { points: 500, q: "Nel 390 a.C. i Romani furono salvati da un attacco notturno dei Galli grazie a dei rumorosi animali sacri a Giunone. Quali?", a: "Le oche (Le 'Oche del Campidoglio')." }
+                ]
+            },
+            {
+                category: "Latino nel Carrello",
+                questions: [
+                    { points: 100, q: "Spesso alla fine di un documento c'è la sigla 'N.B.'. Quali parole latine abbrevia?", a: "Nota bene." },
+                    { points: 200, q: "Nei fumetti o nei videogiochi si usa l'espressione 'Alter ego' per una doppia identità. Cosa significa letteralmente?", a: "Un altro io / Un altro me stesso." },
+                    { points: 300, q: "Quando un sospettato deve dimostrare di non essere l'assassino, fornisce un... (parola latina che significa 'altrove').", a: "Alibi." },
+                    { points: 400, q: "Se una regola o un oggetto vengono creati 'appositamente per questo preciso scopo', si usa l'espressione latina Ad...?", a: "Ad hoc." },
+                    { points: 500, q: "Quando un prodotto è il massimo raggiungibile si dice che è il 'Non plus ultra'. Dove era incisa questa frase nel mito?", a: "Sulle Colonne d'Ercole (Stretto di Gibilterra), indicava il limite oltre cui 'non andare più oltre'." }
+                ]
+            }
+        ];
+
+        // --- STREAMING_CHUNK:Setting up State and Core Logic... ---
+        let teams = [
+            { id: 0, name: "Squadra 1", score: 0 },
+            { id: 1, name: "Squadra 2", score: 0 },
+            { id: 2, name: "Squadra 3", score: 0 },
+            { id: 3, name: "Squadra 4", score: 0 }
+        ];
+
+        let currentActiveQuestion = null; // { catIndex, qIndex, points }
+        let timerInterval = null;
+        let timeLeft = 30;
+        let editingTeamId = null;
+
+        const boardEl = document.getElementById('game-board');
+        const scoreboardEl = document.getElementById('scoreboard');
+        const modalEl = document.getElementById('question-modal');
+
+        // --- INIT GAME BOARD ---
+        function initGame() {
+            renderBoard();
+            renderScoreboard();
+        }
+
+        // --- STREAMING_CHUNK:Rendering the Grid and Scoreboard... ---
+        function renderBoard() {
+            boardEl.innerHTML = '';
+            
+            // Add Category Headers
+            gameData.forEach(cat => {
+                const header = document.createElement('div');
+                header.className = 'category-header';
+                header.innerText = cat.category;
+                boardEl.appendChild(header);
+            });
+
+            // Add Questions (row by row: 100s, then 200s, etc.)
+            for (let row = 0; row < 5; row++) {
+                gameData.forEach((cat, col) => {
+                    const qData = cat.questions[row];
+                    const card = document.createElement('div');
+                    card.className = 'question-card';
+                    card.id = `card-${col}-${row}`;
+                    card.innerText = qData.points;
+                    
+                    // Add click event if not played
+                    card.onclick = () => {
+                        if (!card.classList.contains('played')) {
+                            openQuestion(col, row);
+                        }
+                    };
+
+                    boardEl.appendChild(card);
+                });
+            }
+        }
+
+        function renderScoreboard() {
+            scoreboardEl.innerHTML = '';
+            teams.forEach(team => {
+                const teamCard = document.createElement('div');
+                teamCard.className = 'bg-slate-800 rounded-lg p-4 border border-slate-600 flex flex-col items-center justify-between shadow-lg';
+                
+                teamCard.innerHTML = `
+                    <div class="flex items-center gap-2 mb-2 w-full justify-center group">
+                        <h3 class="text-xl font-bold text-white truncate max-w-[80%]">${team.name}</h3>
+                        <button onclick="openRenameModal(${team.id})" class="text-slate-500 hover:text-blue-400 opacity-0 group-hover:opacity-100 transition-opacity">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                                <path d="M13.586 3.586a2 2 0 112.828 2.828l-.793.793-2.828-2.828.793-.793zM11.379 5.793L3 14.172V17h2.828l8.38-8.379-2.83-2.828z" />
+                            </svg>
+                        </button>
+                    </div>
+                    <div class="text-4xl font-extrabold text-yellow-400 mb-4">${team.score}</div>
+                    <div class="flex gap-2 w-full">
+                        <button onclick="adjustScore(${team.id}, -100)" class="flex-1 bg-red-900/50 hover:bg-red-800 text-red-300 font-bold py-2 rounded transition">-100</button>
+                        <button onclick="adjustScore(${team.id}, 100)" class="flex-1 bg-green-900/50 hover:bg-green-800 text-green-300 font-bold py-2 rounded transition">+100</button>
+                    </div>
+                `;
+                scoreboardEl.appendChild(teamCard);
+            });
+
+            // Also update the buttons in the modal for assigning points
+            updateModalAssignButtons();
+        }
+
+        // --- STREAMING_CHUNK:Handling Question Modal and Admin Actions... ---
+        function openQuestion(catIndex, qIndex) {
+            const qData = gameData[catIndex].questions[qIndex];
+            currentActiveQuestion = { catIndex, qIndex, points: qData.points };
+            
+            document.getElementById('modal-points').innerText = `${qData.points} PUNTI`;
+            document.getElementById('modal-question').innerText = qData.q;
+            document.getElementById('modal-answer').innerText = qData.a;
+            
+            // Reset state
+            document.getElementById('modal-answer-container').classList.add('hidden');
+            document.getElementById('assign-points-container').classList.add('opacity-50');
+            document.getElementById('reveal-btn').classList.remove('hidden');
+            resetTimer();
+
+            // Show Modal
+            modalEl.classList.remove('hidden');
+            // Trigger reflow to animate opacity
+            void modalEl.offsetWidth; 
+            modalEl.classList.remove('opacity-0');
+        }
+
+        function closeModal(markAsPlayed = false) {
+            modalEl.classList.add('opacity-0');
+            setTimeout(() => {
+                modalEl.classList.add('hidden');
+                pauseTimer();
+                
+                if (markAsPlayed && currentActiveQuestion) {
+                    const card = document.getElementById(`card-${currentActiveQuestion.catIndex}-${currentActiveQuestion.qIndex}`);
+                    card.classList.add('played');
+                    card.innerText = ''; // Clear points text
+                }
+                currentActiveQuestion = null;
+            }, 300); // Matches transition duration
+        }
+
+        function revealAnswer() {
+            document.getElementById('modal-answer-container').classList.remove('hidden');
+            document.getElementById('assign-points-container').classList.remove('opacity-50');
+            document.getElementById('reveal-btn').classList.add('hidden');
+            pauseTimer();
+        }
+
+        // --- STREAMING_CHUNK:Handling Timer Logic... ---
+        function updateTimerDisplay() {
+            const display = document.getElementById('timer-display');
+            display.innerText = timeLeft;
+            if (timeLeft <= 5 && timeLeft > 0) {
+                display.classList.add('timer-urgent');
+            } else {
+                display.classList.remove('timer-urgent');
+            }
+        }
+
+        function startTimer() {
+            if (timerInterval) return; // Already running
+            timerInterval = setInterval(() => {
+                if (timeLeft > 0) {
+                    timeLeft--;
+                    updateTimerDisplay();
+                } else {
+                    pauseTimer();
+                    // Optional: play sound or auto-reveal
+                }
+            }, 1000);
+        }
+
+        function pauseTimer() {
+            clearInterval(timerInterval);
+            timerInterval = null;
+        }
+
+        function resetTimer() {
+            pauseTimer();
+            timeLeft = 30;
+            updateTimerDisplay();
+        }
+
+        // --- STREAMING_CHUNK:Handling Scoring and Teams... ---
+        function adjustScore(teamId, amount) {
+            teams[teamId].score += amount;
+            renderScoreboard();
+        }
+
+        function assignPointsTo(teamId) {
+            if (!currentActiveQuestion) return;
+            // Add points to team
+            adjustScore(teamId, currentActiveQuestion.points);
+            // Close modal and mark as played
+            closeModal(true);
+        }
+
+        function updateModalAssignButtons() {
+            const container = document.getElementById('assign-buttons');
+            container.innerHTML = '';
+            teams.forEach(team => {
+                const btn = document.createElement('button');
+                btn.className = 'bg-blue-700 hover:bg-blue-600 border border-blue-500 text-white font-bold py-3 px-2 rounded text-sm sm:text-base truncate transition';
+                btn.innerText = team.name;
+                btn.onclick = () => assignPointsTo(team.id);
+                container.appendChild(btn);
+            });
+        }
+
+        // --- STREAMING_CHUNK:Handling Team Renaming... ---
+        const renameModal = document.getElementById('rename-modal');
+        const renameInput = document.getElementById('rename-input');
+
+        function openRenameModal(teamId) {
+            editingTeamId = teamId;
+            renameInput.value = teams[teamId].name;
+            
+            renameModal.classList.remove('hidden');
+            void renameModal.offsetWidth;
+            renameModal.classList.remove('opacity-0');
+            
+            setTimeout(() => renameInput.focus(), 100);
+        }
+
+        function closeRenameModal() {
+            renameModal.classList.add('opacity-0');
+            setTimeout(() => {
+                renameModal.classList.add('hidden');
+                editingTeamId = null;
+            }, 300);
+        }
+
+        function saveTeamName() {
+            if (editingTeamId !== null) {
+                const newName = renameInput.value.trim();
+                if (newName) {
+                    teams[editingTeamId].name = newName;
+                    renderScoreboard();
+                }
+                closeRenameModal();
+            }
+        }
+
+        // Allow pressing Enter to save team name
+        renameInput.addEventListener('keypress', function (e) {
+            if (e.key === 'Enter') {
+                saveTeamName();
+            }
+        });
+
+        // Initialize on load
+        window.onload = initGame;
+    </script>
+</body>
+</html>
