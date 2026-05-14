@@ -10,6 +10,10 @@
         body {
             font-family: 'Inter', sans-serif;
             background-color: #0f172a; /* Slate 900 */
+            background-image: url('img/svperqviz.png');
+            background-size: cover;
+            background-position: center;
+            background-attachment: fixed;
             color: white;
             overflow-x: hidden;
         }
@@ -93,26 +97,36 @@
 </head>
 <body class="min-h-screen flex flex-col">
 
-    <!-- Header -->
-    <header class="bg-slate-900 py-4 shadow-md text-center border-b border-slate-700">
-        <h1 class="text-4xl font-extrabold tracking-wider text-transparent bg-clip-text bg-gradient-to-r from-yellow-400 to-yellow-200 uppercase">
-            Rischiatutto Latino
-        </h1>
-    </header>
+    <!-- Overlay iniziale -->
+    <div id="start-overlay" class="absolute inset-0 flex items-center justify-center z-40 transition-opacity duration-1000 cursor-pointer">
+        <h2 class="text-5xl font-extrabold text-white drop-shadow-[0_5px_5px_rgba(0,0,0,1)] animate-pulse">
+            Clicca per iniziare
+        </h2>
+    </div>
 
-    <!-- Main Game Board Container -->
-    <main class="flex-grow flex items-center justify-center overflow-x-auto bg-slate-800">
-        <div id="game-board" class="jeopardy-grid">
-            <!-- Grid will be populated by JS -->
-        </div>
-    </main>
+    <!-- Interfaccia di Gioco (nascosta inizialmente per l'animazione) -->
+    <div id="game-ui" class="flex flex-col flex-grow w-full opacity-0 scale-95 pointer-events-none transition-all duration-1000 ease-out origin-center">
+        <!-- Header -->
+        <header class="bg-slate-900/80 backdrop-blur-sm py-4 shadow-md text-center border-b border-slate-700">
+            <h1 class="text-4xl font-extrabold tracking-wider text-transparent bg-clip-text bg-gradient-to-r from-yellow-400 to-yellow-200 uppercase">
+                Rischiatutto Latino
+            </h1>
+        </header>
 
-    <!-- Scoreboard Container -->
-    <footer class="bg-slate-900 border-t border-slate-700 p-4">
-        <div class="max-w-7xl mx-auto grid grid-cols-4 gap-4" id="scoreboard">
-            <!-- Teams will be populated by JS -->
-        </div>
-    </footer>
+        <!-- Main Game Board Container -->
+        <main class="flex-grow flex items-center justify-center overflow-x-auto bg-transparent">
+            <div id="game-board" class="jeopardy-grid">
+                <!-- Grid will be populated by JS -->
+            </div>
+        </main>
+
+        <!-- Scoreboard Container -->
+        <footer class="bg-slate-900/80 backdrop-blur-sm border-t border-slate-700 p-4">
+            <div class="max-w-7xl mx-auto grid grid-cols-4 gap-4" id="scoreboard">
+                <!-- Teams will be populated by JS -->
+            </div>
+        </footer>
+    </div>
 
     <!-- Modal: Question & Timer -->
     <div id="question-modal" class="fixed inset-0 modal-overlay flex items-center justify-center z-50 hidden opacity-0 transition-opacity duration-300">
@@ -481,8 +495,27 @@
             }
         });
 
-        // Initialize on load
-        window.onload = initGame;
+        // Inizializza al caricamento e gestisci l'animazione di entrata
+        window.onload = () => {
+            initGame();
+
+            // Rivela il gioco al primo click sullo schermo
+            let gameRevealed = false;
+            document.addEventListener('click', () => {
+                if (!gameRevealed) {
+                    gameRevealed = true;
+                    const overlay = document.getElementById('start-overlay');
+                    const ui = document.getElementById('game-ui');
+                    if (overlay) {
+                        overlay.classList.add('opacity-0', 'pointer-events-none');
+                    }
+                    if (ui) {
+                        ui.classList.remove('opacity-0', 'scale-95', 'pointer-events-none');
+                        ui.classList.add('opacity-100', 'scale-100', 'pointer-events-auto');
+                    }
+                }
+            });
+        };
     </script>
 </body>
 </html>
