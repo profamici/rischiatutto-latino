@@ -15,6 +15,7 @@
             background-position: center;
             background-attachment: fixed;
             color: white;
+            transition: background-image 1s ease-in-out;
             overflow-x: hidden;
         }
         
@@ -507,6 +508,10 @@
             document.addEventListener('click', () => {
                 if (!gameRevealed) {
                     gameRevealed = true;
+                    
+                    // Cambia l'immagine di sfondo per la modalità di gioco
+                    document.body.style.backgroundImage = "url('img/svperqvizc.png')";
+                    
                     const overlay = document.getElementById('start-overlay');
                     const ui = document.getElementById('game-ui');
                     if (overlay) {
